@@ -1,5 +1,7 @@
 import collections
-from game import Player
+from network import Network, make_uniform_network
+from game import Player, Game
+from config import MuZeroConfig
 from typing import List, Optional
 
 MAXIMUM_FLOAT_VALUE = float('inf')
@@ -84,3 +86,51 @@ class Node(object):
         if self.visit_count == 0:
             return 0
         return self.value_sum / self.visit_count
+
+"""A class for the Replay Buffer object"""
+class ReplayBuffer(object):
+    def __init__(self, config: MuZeroConfig):
+        self.window_size = config.window_size
+        self.batch_size = config.batch_size
+        self.buffer = []
+
+    def save_game(self, game):
+        if len(self.buffer) > self.window_size:
+            self.buffer.pop(0)
+        self.buffer.append(game)
+    
+    # TODO
+    def sample_game(self) -> Game:
+        #Sample game from buffer either uniformly or according to some priority.
+        return self.buffer[0]
+    
+    # TODO
+    def sample_position(self, game) -> int:
+        #Sample position from game either uniformly or according to some priority.
+        return -1
+
+    
+    def sample_batch(self, num_unroll_steps: int, td_steps: int):
+        games = [self.sample_game() for _ in range(self.batch_size)]
+        game_pos = [(g, self.sample_position(g)) for g in games]
+        return [(g.make_image(i), g.history[i:i + num_unroll_steps],
+                 g.make_target(i, num_unroll_steps, td_steps, g.to_play())) 
+                 for (g, i) in game_pos]
+
+"""A class for the shared storage of all instances"""
+class SharedStorage(object):
+    def __init__(self):
+        self._networks = {}
+    
+    def latest_network(self) -> Network:
+        if self._networks:
+            return self._networks[max(self._networks.keys())]
+        else:
+            # policy -> uniform, value -> 0, reward -> 0
+            return make_uniform_network()
+        
+    def save_network(self, step: int, network: Network):
+        self._networks[step] = network
+
+def softmax_sample(distribution, temprature: float):
+    return 0, 0
